@@ -34,6 +34,7 @@ files = [
   "../../test/fixtures/discovery/sap_system/sap_system_discovery_application.json",
   "../../test/fixtures/discovery/subscriptions/expected_published_subscriptions_discovery.json",
 ]
+directories = ["target"]
 
 [second-test-scenario]
 files = [

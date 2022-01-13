@@ -8,8 +8,9 @@ pub fn show_list(scenarios: &Vec<Scenario>) -> () {
 
 fn print_scenario(scenario: &Scenario) -> () {
     println!(
-        "NAME: {}\nFILES:\n{}\n",
+        "NAME: {}\nFILES:\n{}\nDIRECTORIES:\n{}\n",
         scenario.label,
-        scenario.files.join("\n")
+        scenario.files.join("\n"),
+        scenario.directories.join("\n")
     )
 }
