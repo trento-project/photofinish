@@ -1,6 +1,6 @@
 extern crate clap;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg};
 
 mod config;
 mod list;
@@ -10,18 +10,18 @@ mod run;
 async fn main() {
     let options = App::new("photofinish")
         .version("1.0.0")
-        .subcommand(SubCommand::with_name("list").about("list available event sets"))
+        .subcommand(App::new("list").about("list available event sets"))
         .subcommand(
-            SubCommand::with_name("run")
+            App::new("run")
                 .about("injects a specific set of events")
                 .arg(
-                    Arg::with_name("url")
-                        .short("u")
+                    Arg::new("url")
+                        .short('u')
                         .long("url")
                         .default_value("http://localhost:8081/api/collect"),
                 )
                 .arg(
-                    Arg::with_name("SET")
+                    Arg::new("SET")
                         .help("name of the events set")
                         .required(true),
                 ),
