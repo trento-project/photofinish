@@ -17,6 +17,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --release
     - name: Run tests
       run: cargo test --verbose
+    - name: Release
+      uses: softprops/action-gh-release@v0
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: target/release/photofinish
