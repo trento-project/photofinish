@@ -8,6 +8,7 @@ async fn post_fixture(remote_endpoint: &str, file: &str, http_client: &reqwest::
             let response = http_client
                 .post(remote_endpoint)
                 .body(file_content)
+                .header("Content-Type", "application/json")
                 .send()
                 .await;
             match response {
