@@ -524,7 +524,7 @@ checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
 
 [[package]]
 name = "photofinish"
-version = "1.0.0"
+version = "1.0.3"
 dependencies = [
  "clap",
  "reqwest",
