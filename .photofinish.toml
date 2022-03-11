@@ -11,3 +11,6 @@ files = [
   "third file",
   "fourth-file"
 ]
+
+[fixtures]
+directories = ["./fixtures/"]
