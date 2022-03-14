@@ -9,7 +9,7 @@ mod run;
 #[tokio::main]
 async fn main() {
     let options = App::new("photofinish")
-        .version("1.0.3")
+        .version("1.1.0")
         .subcommand(App::new("list").about("list available event sets"))
         .subcommand(
             App::new("run")
