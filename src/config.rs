@@ -8,12 +8,12 @@ pub struct Scenario {
 }
 
 pub fn get_config_file_content() -> String {
-    match fs::read_to_string(".photofinish.toml".to_string()) {
+    match fs::read_to_string(".photofinish.toml") {
         Ok(toml_content) => toml_content,
         Err(err) => {
             println!(
                 "Error! Probably .photofinish.toml is missing\n{}",
-                err.to_string()
+                err
             );
             String::new()
         }

@@ -1,12 +1,12 @@
 use crate::config::Scenario;
 
-pub fn show_list(scenarios: &Vec<Scenario>) -> () {
+pub fn show_list(scenarios: &[Scenario]) {
     for scenario in scenarios.iter() {
         print_scenario(scenario)
     }
 }
 
-fn print_scenario(scenario: &Scenario) -> () {
+fn print_scenario(scenario: &Scenario) {
     println!(
         "NAME: {}\nFILES:\n{}\nDIRECTORIES:\n{}\n",
         scenario.label,
