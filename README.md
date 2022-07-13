@@ -10,23 +10,26 @@ Photofinish reads a `.photofinish.toml` file in the current working directory an
 ## Usage
 
 ```sh
-$ photofinish help
-photofinish 1.0.0
+$ photofinish run help
+photofinish-run
+injects a specific set of events
 
 USAGE:
-    photofinish [SUBCOMMAND]
+    photofinish run [OPTIONS] <SET> [API_KEY]
 
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+ARGS:
+    <SET>        name of the events set
+    <API_KEY>    API key for the remote endpoint [default: ]
 
-SUBCOMMANDS:
-    help    Prints this message or the help of the given subcommand(s)
-    list    list available event sets
-    run     injects a specific set of events
+OPTIONS:
+    -h, --help         Print help information
+    -u, --url <url>    [default: http://localhost:8081/api/collect]
 ```
 
+Please refer to `photofinish help` for more commands.
+
 ## Example of `.photofinish.toml`
+
 ```toml
 [first-test-scenario]
 files = [
@@ -44,11 +47,10 @@ files = [
 ```
 
 ## "How do I run a fixture set?"
+
 ```sh
 $ photofinish run first-test-scenario
 Successfully POSTed file: ../../test/fixtures/discovery/host/expected_published_host_discovery.json
 Successfully POSTed file: ../../test/fixtures/discovery/sap_system/sap_system_discovery_application.json
 Successfully POSTed file: ../../test/fixtures/discovery/subscriptions/expected_published_subscriptions_discovery.json
 ```
-
-

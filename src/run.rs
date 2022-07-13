@@ -16,16 +16,19 @@ struct Errored {
 
 async fn post_fixture(
     remote_endpoint: &str,
+    api_key: &str,
     file: &str,
-    http_client: &reqwest::Client,
 ) -> Result<FixtureResult, Errored> {
+    let http_client = reqwest::Client::new();
     let canonical_path = fs::canonicalize(file).unwrap_or_default();
     let processed_fixture = file.to_string();
+
     match fs::read_to_string(canonical_path) {
         Ok(file_content) => {
             let response = http_client
                 .post(remote_endpoint)
                 .body(file_content)
+                .header("x-trento-apikey", api_key)
                 .header("Content-Type", "application/json")
                 .send()
                 .await;
@@ -63,7 +66,7 @@ fn scan_directory(directory: &str) -> Result<Vec<String>, std::io::Error> {
     let files_list = fs::read_dir(directory)?
         .filter_map(|file| {
             file.ok().and_then(|e| match e.path().is_file() {
-                true => e.path().to_str().and_then(|s| Some(s.to_string())),
+                true => e.path().to_str().map(|s| s.to_string()),
                 false => None,
             })
         })
@@ -73,10 +76,10 @@ fn scan_directory(directory: &str) -> Result<Vec<String>, std::io::Error> {
 
 pub async fn run(
     remote_endpoint: &str,
+    api_key: &str,
     scenario_label: String,
     scenarios: Vec<Scenario>,
-    http_client: reqwest::Client,
-) -> () {
+) {
     let selected_scenario = scenarios
         .iter()
         .find(|current_scenario| current_scenario.label == scenario_label);
@@ -96,7 +99,7 @@ pub async fn run(
             let mut retryable: Vec<FixtureResult> = vec![];
 
             for file in full_scenario.iter() {
-                let execution_result = post_fixture(remote_endpoint, file, &http_client).await;
+                let execution_result = post_fixture(remote_endpoint, api_key, file).await;
                 match execution_result {
                     Ok(FixtureResult::Retryable { file }) => {
                         retryable.push(FixtureResult::Retryable { file })
@@ -109,12 +112,9 @@ pub async fn run(
             }
 
             for to_retry in retryable.iter() {
-                match to_retry {
-                    FixtureResult::Retryable { file } => {
-                        println!("Retrying: {}", file);
-                        _ = post_fixture(remote_endpoint, file, &http_client).await;
-                    }
-                    _ => (),
+                if let FixtureResult::Retryable { file } = to_retry {
+                    println!("Retrying: {}", file);
+                    _ = post_fixture(remote_endpoint, api_key, file).await;
                 }
             }
         }
