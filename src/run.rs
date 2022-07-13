@@ -18,10 +18,11 @@ async fn post_fixture(
     remote_endpoint: &str,
     api_key: &str,
     file: &str,
-    http_client: &reqwest::Client,
 ) -> Result<FixtureResult, Errored> {
+    let http_client = reqwest::Client::new();
     let canonical_path = fs::canonicalize(file).unwrap_or_default();
     let processed_fixture = file.to_string();
+
     match fs::read_to_string(canonical_path) {
         Ok(file_content) => {
             let response = http_client
@@ -78,7 +79,6 @@ pub async fn run(
     api_key: &str,
     scenario_label: String,
     scenarios: Vec<Scenario>,
-    http_client: reqwest::Client,
 ) {
     let selected_scenario = scenarios
         .iter()
@@ -99,8 +99,7 @@ pub async fn run(
             let mut retryable: Vec<FixtureResult> = vec![];
 
             for file in full_scenario.iter() {
-                let execution_result =
-                    post_fixture(remote_endpoint, api_key, file, &http_client).await;
+                let execution_result = post_fixture(remote_endpoint, api_key, file).await;
                 match execution_result {
                     Ok(FixtureResult::Retryable { file }) => {
                         retryable.push(FixtureResult::Retryable { file })
@@ -115,7 +114,7 @@ pub async fn run(
             for to_retry in retryable.iter() {
                 if let FixtureResult::Retryable { file } = to_retry {
                     println!("Retrying: {}", file);
-                    _ = post_fixture(remote_endpoint, api_key, file, &http_client).await;
+                    _ = post_fixture(remote_endpoint, api_key, file).await;
                 }
             }
         }

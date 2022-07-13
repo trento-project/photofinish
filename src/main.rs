@@ -34,8 +34,6 @@ async fn main() {
         )
         .get_matches();
 
-    let http_client = reqwest::Client::new();
-
     let config = config::get_config_file_content();
 
     let scenarios = config::parse_scenarios(config);
@@ -48,13 +46,6 @@ async fn main() {
         let scenario_label = run_options.value_of("SET").unwrap();
         let endpoint_url = run_options.value_of("url").unwrap();
         let api_key = run_options.value_of("API_KEY").unwrap();
-        run::run(
-            endpoint_url,
-            api_key,
-            scenario_label.to_string(),
-            scenarios,
-            http_client,
-        )
-        .await;
+        run::run(endpoint_url, api_key, scenario_label.to_string(), scenarios).await;
     }
 }
