@@ -5,7 +5,7 @@ WORKDIR /home/photofinish/
 COPY . .
 RUN cargo build --release
 
-FROM gcr.io/distroless/cc
+FROM registry.suse.com/bci/rust:latest
 
 WORKDIR /home/photofinish/
 COPY --from=builder /home/photofinish/target/release/photofinish .
