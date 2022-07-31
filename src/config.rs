@@ -11,10 +11,10 @@ fn get_config_from_stdin() -> String {
     let mut piped_input = String::new();
     match io::stdin().read_to_string(&mut piped_input) {
         Ok(len) => {
-            if len != 0 {
-                return piped_input;
+            match len {
+                0 => String::new(),
+                _ => piped_input
             }
-            String::new()
         },
         Err(error) => {
             println!("Error! could not read from stdin the photofinish config file\n: {}", error);
@@ -25,23 +25,20 @@ fn get_config_from_stdin() -> String {
 
 pub fn get_config_file_content() -> String {
     match fs::read_to_string(".photofinish.toml") {
-        Ok(toml_content) => {
-            println!("read from config file!\n");
-
-            return toml_content
-        },
+        Ok(toml_content) => toml_content,
         Err(err) => {
             let piped_config = get_config_from_stdin();
 
-            if piped_config == "" {
-                println!(
-                    "Error! Probably .photofinish.toml is missing\n{}",
-                    err
-                );
-                return String::new()
+            match piped_config.as_str() {
+                "" => {
+                    println!(
+                        "Error! Probably .photofinish.toml is missing\n{}",
+                        err
+                    );
+                    String::new()
+                },
+                _ => piped_config
             }
-            
-            piped_config
         }
     }
 }
