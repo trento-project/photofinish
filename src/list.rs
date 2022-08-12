@@ -1,4 +1,4 @@
-use crate::config::Scenario;
+use crate::runner::config::Scenario;
 
 pub fn show_list(scenarios: &[Scenario]) {
     for scenario in scenarios.iter() {
