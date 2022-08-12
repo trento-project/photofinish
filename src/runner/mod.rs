@@ -1,6 +1,8 @@
-use crate::config::Scenario;
+pub mod config;
+
 use reqwest::StatusCode;
 use std::fs;
+use config::Scenario;
 
 #[derive(Debug)]
 enum FixtureResult {
