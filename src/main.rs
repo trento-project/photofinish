@@ -22,6 +22,7 @@ async fn create_server(scenarios: &Vec<Scenario>) -> std::io::Result<()> {
                 }
             ))
             .service(web::handlers::list_scenarios)
+            .service(web::handlers::execute_scenario)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
