@@ -38,10 +38,18 @@ async fn post_fixture(
                         println!("Successfully POSTed file: {}", file);
                         Ok(FixtureResult::Success)
                     }
-                    StatusCode::BAD_REQUEST => Ok(FixtureResult::Retryable {
+                    StatusCode::BAD_REQUEST
+                    | StatusCode::UNPROCESSABLE_ENTITY
+                    | StatusCode::NOT_FOUND => Ok(FixtureResult::Retryable {
                         file: processed_fixture,
                     }),
-                    _ => Ok(FixtureResult::Skippable),
+                    status_code => {
+                        println!(
+                            "Unexpected status code {} while POSTing fixture: {}",
+                            status_code, file
+                        );
+                        Ok(FixtureResult::Skippable)
+                    }
                 },
                 Err(err) => {
                     println!("Error while POSTing fixture: {}", file);
