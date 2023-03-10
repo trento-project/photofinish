@@ -10,14 +10,21 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --release
+    - name: Compress action step
+      uses: a7ul/tar-action@v1.1.0
+      id: compress
+      with:
+        command: c
+        cwd: ./target/release/
+        files: |
+          ./photofinish
+        outPath: photofinish_linux_x86_64.tar.gz
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        files: target/release/photofinish
+        files: ./photofinish_linux_x86_64.tar.gz
