@@ -13,7 +13,7 @@ async fn main() {
         .subcommand(App::new("list").about("list available event sets"))
         .subcommand(
             App::new("run")
-                .about("injects a specific set of events")
+                .about("publish a specific set of events")
                 .arg(
                     Arg::new("url")
                         .short('u')
