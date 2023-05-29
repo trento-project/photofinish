@@ -2,9 +2,9 @@ extern crate clap;
 
 use clap::{App, AppSettings, Arg};
 
-mod config;
 mod list;
 mod run;
+mod scenario;
 
 #[tokio::main]
 async fn main() {
@@ -35,8 +35,8 @@ async fn main() {
         .setting(AppSettings::ArgRequiredElseHelp)
         .get_matches();
 
-    let config = config::get_config_file_content();
-    let scenarios = config::parse_scenarios(config);
+    let config = scenario::get_config_file_content();
+    let scenarios = scenario::parse_scenarios(config);
 
     if options.subcommand_matches("list").is_some() {
         list::show_list(&scenarios);
