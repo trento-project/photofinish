@@ -1,5 +1,6 @@
 extern crate clap;
 
+use anyhow::{Ok, Result};
 use clap::{App, Arg};
 
 mod config;
@@ -7,7 +8,7 @@ mod list;
 mod run;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let options = App::new("photofinish")
         .version(clap::crate_version!())
         .subcommand(App::new("list").about("list available event sets"))
@@ -34,9 +35,9 @@ async fn main() {
         )
         .get_matches();
 
-    let config = config::get_config_file_content();
+    let config = config::get_config_file_content()?;
 
-    let scenarios = config::parse_scenarios(config);
+    let scenarios = config::parse_scenarios(config)?;
 
     if options.subcommand_matches("list").is_some() {
         list::show_list(&scenarios);
@@ -48,4 +49,5 @@ async fn main() {
         let api_key = run_options.value_of("API_KEY").unwrap();
         run::run(endpoint_url, api_key, scenario_label.to_string(), scenarios).await;
     }
+    Ok(())
 }
