@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.3.0](https://github.com/trento-project/photofinish/tree/v1.3.0) (2024-03-18)
+
+[Full Changelog](https://github.com/trento-project/photofinish/compare/v1.2.2...v1.3.0)
+
+- Add exit codes to the tool [\#20](https://github.com/trento-project/photofinish/pull/20) ([arbulu89](https://github.com/arbulu89))
+
 ## [v1.2.2](https://github.com/trento-project/photofinish/tree/v1.2.2) (2023-03-10)
 
 [Full Changelog](https://github.com/trento-project/photofinish/compare/v1.1.2...v1.2.2)
