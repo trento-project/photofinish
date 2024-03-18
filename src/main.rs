@@ -1,4 +1,5 @@
 extern crate clap;
+extern crate exitcode;
 
 use clap::{App, Arg};
 
@@ -40,12 +41,19 @@ async fn main() {
 
     if options.subcommand_matches("list").is_some() {
         list::show_list(&scenarios);
+        std::process::exit(exitcode::OK)
     }
 
     if let Some(run_options) = options.subcommand_matches("run") {
         let scenario_label = run_options.value_of("SET").unwrap();
         let endpoint_url = run_options.value_of("url").unwrap();
         let api_key = run_options.value_of("API_KEY").unwrap();
-        run::run(endpoint_url, api_key, scenario_label.to_string(), scenarios).await;
+        match run::run(endpoint_url, api_key, scenario_label.to_string(), scenarios).await {
+            Ok(()) => std::process::exit(exitcode::OK),
+            Err(()) => std::process::exit(1)
+        }
     }
+
+    println!("Subcommand not provided. Available subcommands: list|run");
+    std::process::exit(exitcode::USAGE)
 }

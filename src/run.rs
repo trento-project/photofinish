@@ -7,6 +7,7 @@ enum FixtureResult {
     Success,
     Retryable { file: String },
     Skippable,
+    Unauthorized,
 }
 
 struct Errored {
@@ -37,6 +38,10 @@ async fn post_fixture(
                     StatusCode::ACCEPTED => {
                         println!("Successfully POSTed file: {}", file);
                         Ok(FixtureResult::Success)
+                    }
+                    StatusCode::UNAUTHORIZED => {
+                        println!("POST request unauthorized. Set the correct API_KEY as argument");
+                        Ok(FixtureResult::Unauthorized)
                     }
                     StatusCode::BAD_REQUEST
                     | StatusCode::UNPROCESSABLE_ENTITY
@@ -87,13 +92,16 @@ pub async fn run(
     api_key: &str,
     scenario_label: String,
     scenarios: Vec<Scenario>,
-) {
+) -> Result<(), ()> {
     let selected_scenario = scenarios
         .iter()
         .find(|current_scenario| current_scenario.label == scenario_label);
 
     match selected_scenario {
-        None => println!("Non-existing scenario!"),
+        None => {
+            println!("Non-existing scenario!");
+            return Err(())
+        },
         Some(scenario) => {
             let fixtures_in_directories: Vec<String> = scenario
                 .directories
@@ -113,6 +121,9 @@ pub async fn run(
                         retryable.push(FixtureResult::Retryable { file })
                     }
                     Ok(FixtureResult::Skippable | FixtureResult::Success) => (),
+                    Ok(FixtureResult::Unauthorized) => {
+                        return Err(())
+                    },
                     Err(Errored { file, reason }) => {
                         println!("An error occurred in loading fixture {}: {}", file, reason)
                     }
@@ -127,6 +138,8 @@ pub async fn run(
             }
         }
     }
+
+    Ok(())
 }
 
 fn extract_fixtures_from_directory(directory: &String) -> Option<Vec<String>> {
