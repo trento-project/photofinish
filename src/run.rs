@@ -1,4 +1,4 @@
-use crate::config::Scenario;
+use crate::scenario::Scenario;
 use reqwest::StatusCode;
 use std::fs;
 
