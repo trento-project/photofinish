@@ -1,11 +1,11 @@
 extern crate clap;
 extern crate exitcode;
 
-use clap::{App, Arg};
+use clap::{App, AppSettings, Arg};
 
-mod config;
 mod list;
 mod run;
+mod scenario;
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +14,7 @@ async fn main() {
         .subcommand(App::new("list").about("list available event sets"))
         .subcommand(
             App::new("run")
-                .about("injects a specific set of events")
+                .about("publish a specific set of events")
                 .arg(
                     Arg::new("url")
                         .short('u')
@@ -33,11 +33,11 @@ async fn main() {
                         .required(false),
                 ),
         )
+        .setting(AppSettings::ArgRequiredElseHelp)
         .get_matches();
 
-    let config = config::get_config_file_content();
-
-    let scenarios = config::parse_scenarios(config);
+    let config = scenario::get_config_file_content();
+    let scenarios = scenario::parse_scenarios(config);
 
     if options.subcommand_matches("list").is_some() {
         list::show_list(&scenarios);
