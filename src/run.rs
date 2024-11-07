@@ -101,8 +101,8 @@ pub async fn run(
     match selected_scenario {
         None => {
             println!("Non-existing scenario!");
-            return Err(())
-        },
+            return Err(());
+        }
         Some(scenario) => {
             let mut fixtures_in_directories: Vec<String> = scenario
                 .directories
@@ -123,9 +123,7 @@ pub async fn run(
                         retryable.push(FixtureResult::Retryable { file })
                     }
                     Ok(FixtureResult::Skippable | FixtureResult::Success) => (),
-                    Ok(FixtureResult::Unauthorized) => {
-                        return Err(())
-                    },
+                    Ok(FixtureResult::Unauthorized) => return Err(()),
                     Err(Errored { file, reason }) => {
                         println!("An error occurred in loading fixture {}: {}", file, reason)
                     }

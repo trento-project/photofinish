@@ -67,7 +67,7 @@ async fn main() {
         .await
         {
             Ok(()) => std::process::exit(exitcode::OK),
-            Err(()) => std::process::exit(1)
+            Err(()) => std::process::exit(1),
         }
     }
 
