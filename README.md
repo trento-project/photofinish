@@ -10,8 +10,8 @@ Photofinish reads a `.photofinish.toml` file in the current working directory an
 ## Usage
 
 ```sh
-$ photofinish run help
-photofinish-run
+$ photofinish run --help
+photofinish-run 
 injects a specific set of events
 
 USAGE:
@@ -24,6 +24,7 @@ ARGS:
 OPTIONS:
     -h, --help         Print help information
     -u, --url <url>    [default: http://localhost:8081/api/collect]
+    -w <wait>          Wait interval between http requests, in milliseconds [default: 0]
 ```
 
 Please refer to `photofinish help` for more commands.

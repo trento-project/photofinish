@@ -1,6 +1,6 @@
 use crate::config::Scenario;
 use reqwest::StatusCode;
-use std::fs;
+use std::{fs, thread};
 
 #[derive(Debug)]
 enum FixtureResult {
@@ -92,6 +92,7 @@ pub async fn run(
     api_key: &str,
     scenario_label: String,
     scenarios: Vec<Scenario>,
+    wait: u64,
 ) -> Result<(), ()> {
     let selected_scenario = scenarios
         .iter()
@@ -103,12 +104,13 @@ pub async fn run(
             return Err(())
         },
         Some(scenario) => {
-            let fixtures_in_directories: Vec<String> = scenario
+            let mut fixtures_in_directories: Vec<String> = scenario
                 .directories
                 .iter()
                 .filter_map(extract_fixtures_from_directory)
                 .flatten()
                 .collect();
+            fixtures_in_directories.sort();
 
             let full_scenario = [&scenario.files[..], &fixtures_in_directories[..]].concat();
 
@@ -128,6 +130,8 @@ pub async fn run(
                         println!("An error occurred in loading fixture {}: {}", file, reason)
                     }
                 }
+
+                thread::sleep(std::time::Duration::from_millis(wait));
             }
 
             for to_retry in retryable.iter() {
