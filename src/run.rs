@@ -1,6 +1,7 @@
 use crate::config::Scenario;
 use reqwest::StatusCode;
-use std::{fs, thread};
+use std::fs;
+use tokio::time::sleep;
 
 #[derive(Debug)]
 enum FixtureResult {
@@ -129,7 +130,7 @@ pub async fn run(
                     }
                 }
 
-                thread::sleep(std::time::Duration::from_millis(wait));
+                sleep(std::time::Duration::from_millis(wait)).await
             }
 
             for to_retry in retryable.iter() {
