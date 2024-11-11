@@ -1,6 +1,7 @@
 use crate::config::Scenario;
 use reqwest::StatusCode;
 use std::fs;
+use tokio::time::sleep;
 
 #[derive(Debug)]
 enum FixtureResult {
@@ -92,6 +93,7 @@ pub async fn run(
     api_key: &str,
     scenario_label: String,
     scenarios: Vec<Scenario>,
+    wait: u64,
 ) -> Result<(), ()> {
     let selected_scenario = scenarios
         .iter()
@@ -100,15 +102,16 @@ pub async fn run(
     match selected_scenario {
         None => {
             println!("Non-existing scenario!");
-            return Err(())
-        },
+            return Err(());
+        }
         Some(scenario) => {
-            let fixtures_in_directories: Vec<String> = scenario
+            let mut fixtures_in_directories: Vec<String> = scenario
                 .directories
                 .iter()
                 .filter_map(extract_fixtures_from_directory)
                 .flatten()
                 .collect();
+            fixtures_in_directories.sort();
 
             let full_scenario = [&scenario.files[..], &fixtures_in_directories[..]].concat();
 
@@ -121,13 +124,13 @@ pub async fn run(
                         retryable.push(FixtureResult::Retryable { file })
                     }
                     Ok(FixtureResult::Skippable | FixtureResult::Success) => (),
-                    Ok(FixtureResult::Unauthorized) => {
-                        return Err(())
-                    },
+                    Ok(FixtureResult::Unauthorized) => return Err(()),
                     Err(Errored { file, reason }) => {
                         println!("An error occurred in loading fixture {}: {}", file, reason)
                     }
                 }
+
+                sleep(std::time::Duration::from_millis(wait)).await
             }
 
             for to_retry in retryable.iter() {

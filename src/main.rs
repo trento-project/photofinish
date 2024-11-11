@@ -31,6 +31,13 @@ async fn main() {
                         .help("API key for the remote endpoint")
                         .default_value("")
                         .required(false),
+                )
+                .arg(
+                    Arg::new("wait")
+                        .short('w')
+                        .help("Wait interval between http requests, in milliseconds")
+                        .default_value("0")
+                        .required(false),
                 ),
         )
         .get_matches();
@@ -47,10 +54,20 @@ async fn main() {
     if let Some(run_options) = options.subcommand_matches("run") {
         let scenario_label = run_options.value_of("SET").unwrap();
         let endpoint_url = run_options.value_of("url").unwrap();
+        let wait = run_options.value_of("wait").unwrap();
         let api_key = run_options.value_of("API_KEY").unwrap();
-        match run::run(endpoint_url, api_key, scenario_label.to_string(), scenarios).await {
+
+        match run::run(
+            endpoint_url,
+            api_key,
+            scenario_label.to_string(),
+            scenarios,
+            wait.parse::<u64>().unwrap(),
+        )
+        .await
+        {
             Ok(()) => std::process::exit(exitcode::OK),
-            Err(()) => std::process::exit(1)
+            Err(()) => std::process::exit(1),
         }
     }
 
