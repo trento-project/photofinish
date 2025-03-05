@@ -1,5 +1,23 @@
 # Changelog
 
+## [v1.4.2](https://github.com/trento-project/photofinish/tree/v1.4.2) (2025-03-04)
+
+[Full Changelog](https://github.com/trento-project/photofinish/compare/v1.4.1...v1.4.2)
+
+- Release 1.4.2 building the image in Ubuntu 24.04
+
+## [v1.4.1](https://github.com/trento-project/photofinish/tree/v1.4.1) (2024-11-11)
+
+[Full Changelog](https://github.com/trento-project/photofinish/compare/v1.4.0...v1.4.1)
+
+- Release 1.4.1 [\#24](https://github.com/trento-project/photofinish/pull/24) ([balanza](https://github.com/balanza))
+
+## [v1.4.0](https://github.com/trento-project/photofinish/tree/v1.4.0) (2024-11-11)
+
+[Full Changelog](https://github.com/trento-project/photofinish/compare/v1.3.0...v1.4.0)
+
+- Enforce operation order [\#23](https://github.com/trento-project/photofinish/pull/23) ([balanza](https://github.com/balanza))
+
 ## [v1.3.0](https://github.com/trento-project/photofinish/tree/v1.3.0) (2024-03-18)
 
 [Full Changelog](https://github.com/trento-project/photofinish/compare/v1.2.2...v1.3.0)
