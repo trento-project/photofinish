@@ -13,7 +13,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@50fbc622fc4ef5163becd7fab6573eac35f8462e # v1
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
