@@ -28,6 +28,7 @@ ARGS:
 
 OPTIONS:
     -h, --help         Print help information
+    -k, --insecure <insecure>    Skip SSL verification [default: false]
     -u, --url <url>    [default: http://localhost:8081/api/collect]
     -w <wait>          Wait interval between http requests, in milliseconds [default: 0]
 ----
