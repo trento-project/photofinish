@@ -1,5 +1,5 @@
 use crate::config::Scenario;
-use reqwest::StatusCode;
+use reqwest::{ClientBuilder, StatusCode};
 use std::fs;
 use tokio::time::sleep;
 
@@ -20,8 +20,9 @@ async fn post_fixture(
     remote_endpoint: &str,
     api_key: &str,
     file: &str,
+    insecure: bool,
 ) -> Result<FixtureResult, Errored> {
-    let http_client = reqwest::Client::new();
+    let http_client = ClientBuilder::new().danger_accept_invalid_certs(insecure).build().unwrap();
     let canonical_path = fs::canonicalize(file).unwrap_or_default();
     let processed_fixture = file.to_string();
 
@@ -90,6 +91,7 @@ fn scan_directory(directory: &str) -> Result<Vec<String>, std::io::Error> {
 
 pub async fn run(
     remote_endpoint: &str,
+    insecure: bool,
     api_key: &str,
     scenario_label: String,
     scenarios: Vec<Scenario>,
@@ -118,7 +120,7 @@ pub async fn run(
             let mut retryable: Vec<FixtureResult> = vec![];
 
             for file in full_scenario.iter() {
-                let execution_result = post_fixture(remote_endpoint, api_key, file).await;
+                let execution_result = post_fixture(remote_endpoint, api_key, file, insecure).await;
                 match execution_result {
                     Ok(FixtureResult::Retryable { file }) => {
                         retryable.push(FixtureResult::Retryable { file })
@@ -136,7 +138,7 @@ pub async fn run(
             for to_retry in retryable.iter() {
                 if let FixtureResult::Retryable { file } = to_retry {
                     println!("Retrying: {}", file);
-                    _ = post_fixture(remote_endpoint, api_key, file).await;
+                    _ = post_fixture(remote_endpoint, api_key, file, insecure).await;
                 }
             }
         }

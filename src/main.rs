@@ -22,6 +22,15 @@ async fn main() {
                         .default_value("http://localhost:8081/api/collect"),
                 )
                 .arg(
+                    Arg::new("insecure")
+                        .help("Skip SSL verification")
+                        .short('k')
+                        .default_missing_value("true")
+                        .long("insecure")
+                        .default_value("false")
+                        .required(false)
+                )
+                .arg(
                     Arg::new("SET")
                         .help("name of the events set")
                         .required(true),
@@ -54,11 +63,13 @@ async fn main() {
     if let Some(run_options) = options.subcommand_matches("run") {
         let scenario_label = run_options.value_of("SET").unwrap();
         let endpoint_url = run_options.value_of("url").unwrap();
+        let insecure = run_options.value_of("insecure").unwrap();
         let wait = run_options.value_of("wait").unwrap();
         let api_key = run_options.value_of("API_KEY").unwrap();
 
         match run::run(
             endpoint_url,
+            insecure.parse::<bool>().unwrap(),
             api_key,
             scenario_label.to_string(),
             scenarios,
