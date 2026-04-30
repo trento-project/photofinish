@@ -27,10 +27,10 @@ ARGS:
     <API_KEY>    API key for the remote endpoint [default: ]
 
 OPTIONS:
-    -h, --help         Print help information
+    -h, --help                   Print help information
     -k, --insecure <insecure>    Skip SSL verification [default: false]
-    -u, --url <url>    [default: http://localhost:8081/api/collect]
-    -w <wait>          Wait interval between http requests, in milliseconds [default: 0]
+    -u, --url <url>              [default: http://localhost:8081/api/collect]
+    -w <wait>                    Wait interval between http requests, in milliseconds [default: 0]
 ----
 
 Please refer to `+photofinish help+` for more commands.
