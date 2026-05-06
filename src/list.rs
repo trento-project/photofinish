@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: SUSE LLC
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::config::Scenario;
 
 pub fn show_list(scenarios: &[Scenario]) {

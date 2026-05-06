@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
 [first-test-scenario]
 files = [
   "../../test/fixtures/discovery/host/expected_published_host_discovery.json",
