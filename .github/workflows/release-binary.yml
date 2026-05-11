@@ -19,7 +19,7 @@ jobs:
     - name: Build
       run: cargo build --release
     - name: Compress action step
-      uses: a7ul/tar-action@6b2b13625a2e286a0a04950810139961bf8ce00d # v1.1.0
+      uses: a7ul/tar-action@ed9cbd44fc9276db29ea2fb1f8adf3d7e0691589 # v1.2.0
       id: compress
       with:
         command: c
