@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
 name: Rust
 
 on:
@@ -15,8 +18,11 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+    - name: Checkout
+      uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
     - name: Build
       run: cargo build --release
     - name: Run tests
       run: cargo test --verbose
+    - name: Check license headers
+      uses: apache/skywalking-eyes/header@61275cc80d0798a405cb070f7d3a8aaf7cf2c2c1 # v0.8.0

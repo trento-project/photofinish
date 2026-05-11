@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: SUSE LLC
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::config::Scenario;
 use reqwest::{ClientBuilder, StatusCode};
 use std::fs;

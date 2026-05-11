@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
 FROM rust:1.76 as builder
 
 WORKDIR /home/photofinish/

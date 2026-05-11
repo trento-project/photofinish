@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+header:
+  comment: on-failure
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: SUSE LLC
+    software-name: trento-photofinish
+    content: |
+      SPDX-FileCopyrightText: SUSE LLC
+      SPDX-License-Identifier: Apache-2.0
+  paths-ignore:
+    - "**/*.adoc"
+    - "**/*.json"
+    - "**/*.md"
+    - ".github/dependabot.yml"
+    - "LICENSE"
+    - "Cargo.lock"
