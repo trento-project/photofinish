@@ -7,7 +7,7 @@ version = "1.4.2"
 edition = "2021"
 
 [dependencies]
-toml = "0.9"
+toml = "1.1"
 clap = {version = "3.0.7", features = ["cargo"] }
 serde = { version = "1.0", features = ["derive"] }
 reqwest = { version = "0.13", features = ["json"] }
