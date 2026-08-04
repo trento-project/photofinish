@@ -56,12 +56,12 @@ fn extract_array(label: &str, config_table: &toml::Value) -> Vec<String> {
         .unwrap()
         .iter()
         .find(|(key, _)| key == &label)
-        .and_then(|(_, value)| Some(value))
-        .unwrap_or_else(|| &default_toml_value)
+        .map(|(_, value)| value)
+        .unwrap_or(&default_toml_value)
         .as_array()
-        .unwrap_or_else(|| &default_array)
+        .unwrap_or(&default_array)
         .iter()
-        .map(|file_path| file_path.as_str().unwrap_or_else(|| "").to_string())
+        .map(|file_path| file_path.as_str().unwrap_or("").to_string())
         .collect()
 }
 
