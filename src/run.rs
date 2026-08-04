@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Scenario;
+use reqwest::header::{HeaderName, HeaderValue};
 use reqwest::{ClientBuilder, StatusCode};
 use std::fs;
 use tokio::time::sleep;
@@ -41,7 +42,17 @@ async fn post_fixture(
             for raw_header in extra_headers {
                 match raw_header.split_once(':') {
                     Some((name, value)) => {
-                        request = request.header(name.trim(), value.trim());
+                        let header_name = HeaderName::from_bytes(name.trim().as_bytes());
+                        let header_value = HeaderValue::from_str(value.trim());
+                        match (header_name, header_value) {
+                            (Ok(header_name), Ok(header_value)) => {
+                                request = request.header(header_name, header_value);
+                            }
+                            _ => println!(
+                                "Ignoring invalid header '{}', name/value is not a valid HTTP header",
+                                raw_header
+                            ),
+                        }
                     }
                     None => println!(
                         "Ignoring malformed header '{}', expected format 'Key: Value'",
@@ -428,8 +439,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn post_fixture_ignores_malformed_headers() {
-        let dir = unique_test_dir("post_malformed_headers");
+    async fn post_fixture_ignores_invalid_headers_without_failing_the_request() {
+        let dir = unique_test_dir("post_invalid_headers");
         let file = dir.join("fixture.json");
         fs::write(&file, "{}").unwrap();
         let (endpoint, rx) = spawn_capturing_mock_server().await;
@@ -439,7 +450,12 @@ mod tests {
             "api-key",
             file.to_str().unwrap(),
             false,
-            &["not-a-valid-header"],
+            &[
+                "not-a-valid-header",                                        // no colon
+                "Invalid Name: value",                                       // space in name
+                "X-Injected: value\r\nX-Smuggled-Header: evil", // CRLF injection in value
+                "X-Valid-Header: still-sent",
+            ],
         )
         .await;
 
@@ -451,6 +467,9 @@ mod tests {
 
         let request = rx.await.unwrap().to_lowercase();
         assert!(!request.contains("not-a-valid-header"));
+        assert!(!request.contains("invalid name"));
+        assert!(!request.contains("x-smuggled-header"));
+        assert!(request.contains("x-valid-header: still-sent"));
 
         fs::remove_dir_all(&dir).unwrap();
     }
