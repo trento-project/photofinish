@@ -4,7 +4,7 @@
 extern crate clap;
 extern crate exitcode;
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 
 mod config;
 mod list;
@@ -12,11 +12,11 @@ mod run;
 
 #[tokio::main]
 async fn main() {
-    let options = App::new("photofinish")
+    let options = Command::new("photofinish")
         .version(clap::crate_version!())
-        .subcommand(App::new("list").about("list available event sets"))
+        .subcommand(Command::new("list").about("list available event sets"))
         .subcommand(
-            App::new("run")
+            Command::new("run")
                 .about("injects a specific set of events")
                 .arg(
                     Arg::new("url")
@@ -31,6 +31,7 @@ async fn main() {
                         .default_missing_value("true")
                         .long("insecure")
                         .default_value("false")
+                        .num_args(0..=1)
                         .required(false)
                 )
                 .arg(
@@ -64,11 +65,11 @@ async fn main() {
     }
 
     if let Some(run_options) = options.subcommand_matches("run") {
-        let scenario_label = run_options.value_of("SET").unwrap();
-        let endpoint_url = run_options.value_of("url").unwrap();
-        let insecure = run_options.value_of("insecure").unwrap();
-        let wait = run_options.value_of("wait").unwrap();
-        let api_key = run_options.value_of("API_KEY").unwrap();
+        let scenario_label = run_options.get_one::<String>("SET").unwrap();
+        let endpoint_url = run_options.get_one::<String>("url").unwrap();
+        let insecure = run_options.get_one::<String>("insecure").unwrap();
+        let wait = run_options.get_one::<String>("wait").unwrap();
+        let api_key = run_options.get_one::<String>("API_KEY").unwrap();
 
         match run::run(
             endpoint_url,

@@ -4,7 +4,7 @@
 [package]
 name = "photofinish"
 version = "1.4.2"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 toml = "1.1"

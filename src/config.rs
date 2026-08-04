@@ -49,7 +49,7 @@ pub fn get_config_file_content() -> String {
 
 fn extract_array(label: &str, config_table: &toml::Value) -> Vec<String> {
     let default_array = toml::value::Array::new();
-    let default_toml_value = &"array = []".parse::<toml::Value>().unwrap()["array"];
+    let default_toml_value = toml::Value::Array(default_array.clone());
 
     config_table
         .as_table()
