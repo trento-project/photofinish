@@ -31,6 +31,7 @@ OPTIONS:
     -k, --insecure <insecure>    Skip SSL verification [default: false]
     -u, --url <url>              [default: http://localhost:8081/api/collect]
     -w <wait>                    Wait interval between http requests, in milliseconds [default: 0]
+    -H, --header <header>        Extra HTTP header to send with each request, as 'Key: Value'. Can be repeated.
 ----
 
 Please refer to `+photofinish help+` for more commands.

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Scenario;
+use reqwest::header::{HeaderName, HeaderValue};
 use reqwest::{ClientBuilder, StatusCode};
 use std::fs;
 use tokio::time::sleep;
@@ -24,6 +25,7 @@ async fn post_fixture(
     api_key: &str,
     file: &str,
     insecure: bool,
+    extra_headers: &[&str],
 ) -> Result<FixtureResult, Errored> {
     let http_client = ClientBuilder::new().danger_accept_invalid_certs(insecure).build().unwrap();
     let canonical_path = fs::canonicalize(file).unwrap_or_default();
@@ -31,13 +33,35 @@ async fn post_fixture(
 
     match fs::read_to_string(canonical_path) {
         Ok(file_content) => {
-            let response = http_client
+            let mut request = http_client
                 .post(remote_endpoint)
                 .body(file_content)
                 .header("x-trento-apikey", api_key)
-                .header("Content-Type", "application/json")
-                .send()
-                .await;
+                .header("Content-Type", "application/json");
+
+            for raw_header in extra_headers {
+                match raw_header.split_once(':') {
+                    Some((name, value)) => {
+                        let header_name = HeaderName::from_bytes(name.trim().as_bytes());
+                        let header_value = HeaderValue::from_str(value.trim());
+                        match (header_name, header_value) {
+                            (Ok(header_name), Ok(header_value)) => {
+                                request = request.header(header_name, header_value);
+                            }
+                            _ => println!(
+                                "Ignoring invalid header '{}', name/value is not a valid HTTP header",
+                                raw_header
+                            ),
+                        }
+                    }
+                    None => println!(
+                        "Ignoring malformed header '{}', expected format 'Key: Value'",
+                        raw_header
+                    ),
+                }
+            }
+
+            let response = request.send().await;
             match response {
                 Ok(res) => match res.status() {
                     StatusCode::ACCEPTED => {
@@ -99,6 +123,7 @@ pub async fn run(
     scenario_label: String,
     scenarios: Vec<Scenario>,
     wait: u64,
+    extra_headers: &[&str],
 ) -> Result<(), ()> {
     let selected_scenario = scenarios
         .iter()
@@ -123,7 +148,8 @@ pub async fn run(
             let mut retryable: Vec<FixtureResult> = vec![];
 
             for file in full_scenario.iter() {
-                let execution_result = post_fixture(remote_endpoint, api_key, file, insecure).await;
+                let execution_result =
+                    post_fixture(remote_endpoint, api_key, file, insecure, extra_headers).await;
                 match execution_result {
                     Ok(FixtureResult::Retryable { file }) => {
                         retryable.push(FixtureResult::Retryable { file })
@@ -141,7 +167,7 @@ pub async fn run(
             for to_retry in retryable.iter() {
                 if let FixtureResult::Retryable { file } = to_retry {
                     println!("Retrying: {}", file);
-                    _ = post_fixture(remote_endpoint, api_key, file, insecure).await;
+                    _ = post_fixture(remote_endpoint, api_key, file, insecure, extra_headers).await;
                 }
             }
         }
@@ -200,6 +226,29 @@ mod tests {
             }
         });
         format!("http://{}", addr)
+    }
+
+    // Responds 202 to a single connection and hands the raw request bytes back
+    // to the caller — used to assert which headers were actually sent on the wire.
+    async fn spawn_capturing_mock_server() -> (String, tokio::sync::oneshot::Receiver<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let mut buf = [0u8; 8192];
+                let n = socket.read(&mut buf).await.unwrap_or(0);
+                let request = String::from_utf8_lossy(&buf[..n]).to_string();
+                let _ = socket
+                    .write_all(
+                        b"HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+                    )
+                    .await;
+                let _ = socket.shutdown().await;
+                let _ = tx.send(request);
+            }
+        });
+        (format!("http://{}", addr), rx)
     }
 
     // Accepts one connection per entry in `responses`, in order, and counts how many
@@ -284,7 +333,7 @@ mod tests {
         )
         .await;
 
-        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false).await;
+        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false, &[]).await;
 
         match result {
             Ok(FixtureResult::Success) => (),
@@ -305,7 +354,7 @@ mod tests {
         )
         .await;
 
-        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false).await;
+        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false, &[]).await;
 
         match result {
             Ok(FixtureResult::Unauthorized) => (),
@@ -326,7 +375,7 @@ mod tests {
         )
         .await;
 
-        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false).await;
+        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false, &[]).await;
 
         match result {
             Ok(FixtureResult::Retryable { file: retried_file }) => {
@@ -349,7 +398,7 @@ mod tests {
         )
         .await;
 
-        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false).await;
+        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false, &[]).await;
 
         match result {
             Ok(FixtureResult::Skippable) => (),
@@ -361,13 +410,78 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn post_fixture_sends_extra_headers() {
+        let dir = unique_test_dir("post_extra_headers");
+        let file = dir.join("fixture.json");
+        fs::write(&file, "{}").unwrap();
+        let (endpoint, rx) = spawn_capturing_mock_server().await;
+
+        let result = post_fixture(
+            &endpoint,
+            "api-key",
+            file.to_str().unwrap(),
+            false,
+            &["X-Custom-Header: hello", "X-Another:   world  "],
+        )
+        .await;
+
+        match result {
+            Ok(FixtureResult::Success) => (),
+            Ok(other) => panic!("expected Success, got {:?}", other),
+            Err(_) => panic!("expected Success, got an error"),
+        }
+
+        let request = rx.await.unwrap().to_lowercase();
+        assert!(request.contains("x-custom-header: hello"));
+        assert!(request.contains("x-another: world"));
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn post_fixture_ignores_invalid_headers_without_failing_the_request() {
+        let dir = unique_test_dir("post_invalid_headers");
+        let file = dir.join("fixture.json");
+        fs::write(&file, "{}").unwrap();
+        let (endpoint, rx) = spawn_capturing_mock_server().await;
+
+        let result = post_fixture(
+            &endpoint,
+            "api-key",
+            file.to_str().unwrap(),
+            false,
+            &[
+                "not-a-valid-header",                                        // no colon
+                "Invalid Name: value",                                       // space in name
+                "X-Injected: value\r\nX-Smuggled-Header: evil", // CRLF injection in value
+                "X-Valid-Header: still-sent",
+            ],
+        )
+        .await;
+
+        match result {
+            Ok(FixtureResult::Success) => (),
+            Ok(other) => panic!("expected Success, got {:?}", other),
+            Err(_) => panic!("expected Success, got an error"),
+        }
+
+        let request = rx.await.unwrap().to_lowercase();
+        assert!(!request.contains("not-a-valid-header"));
+        assert!(!request.contains("invalid name"));
+        assert!(!request.contains("x-smuggled-header"));
+        assert!(request.contains("x-valid-header: still-sent"));
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
     async fn post_fixture_errors_when_file_is_missing() {
         let missing_file = unique_test_path("post_fixture_missing_file.json")
             .to_str()
             .unwrap()
             .to_string();
 
-        let result = post_fixture("http://127.0.0.1:1", "api-key", &missing_file, false).await;
+        let result = post_fixture("http://127.0.0.1:1", "api-key", &missing_file, false, &[]).await;
 
         match result {
             Err(Errored { file, reason }) => {
@@ -394,6 +508,7 @@ mod tests {
             "api-key",
             file.to_str().unwrap(),
             false,
+            &[],
         )
         .await;
 
@@ -420,6 +535,7 @@ mod tests {
                 "missing-scenario".to_string(),
                 vec![],
                 0,
+                &[],
             ),
         )
         .await
@@ -458,6 +574,7 @@ mod tests {
                 "my-scenario".to_string(),
                 vec![scenario],
                 0,
+                &[],
             ),
         )
         .await
@@ -500,6 +617,7 @@ mod tests {
                 "my-scenario".to_string(),
                 vec![scenario],
                 0,
+                &[],
             ),
         )
         .await
@@ -540,6 +658,7 @@ mod tests {
                 "my-scenario".to_string(),
                 vec![scenario],
                 0,
+                &[],
             ),
         )
         .await
@@ -548,6 +667,41 @@ mod tests {
         assert!(result.is_ok());
         // First attempt gets 400 (Retryable), then the retry pass posts it again.
         assert_eq!(counter.load(Ordering::SeqCst), 2);
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn run_forwards_extra_headers_to_every_request() {
+        let dir = unique_test_dir("run_extra_headers");
+        let file_a = dir.join("a.json");
+        fs::write(&file_a, "{}").unwrap();
+        let (endpoint, rx) = spawn_capturing_mock_server().await;
+
+        let scenario = Scenario {
+            label: "my-scenario".to_string(),
+            files: vec![file_a.to_str().unwrap().to_string()],
+            directories: vec![],
+        };
+
+        let result = timeout(
+            Duration::from_secs(5),
+            run(
+                &endpoint,
+                false,
+                "api-key",
+                "my-scenario".to_string(),
+                vec![scenario],
+                0,
+                &["X-Custom-Header: hello"],
+            ),
+        )
+        .await
+        .expect("run() timed out");
+
+        assert!(result.is_ok());
+        let request = rx.await.unwrap().to_lowercase();
+        assert!(request.contains("x-custom-header: hello"));
 
         fs::remove_dir_all(&dir).unwrap();
     }
