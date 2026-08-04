@@ -24,6 +24,7 @@ async fn post_fixture(
     api_key: &str,
     file: &str,
     insecure: bool,
+    extra_headers: &[&str],
 ) -> Result<FixtureResult, Errored> {
     let http_client = ClientBuilder::new().danger_accept_invalid_certs(insecure).build().unwrap();
     let canonical_path = fs::canonicalize(file).unwrap_or_default();
@@ -31,13 +32,25 @@ async fn post_fixture(
 
     match fs::read_to_string(canonical_path) {
         Ok(file_content) => {
-            let response = http_client
+            let mut request = http_client
                 .post(remote_endpoint)
                 .body(file_content)
                 .header("x-trento-apikey", api_key)
-                .header("Content-Type", "application/json")
-                .send()
-                .await;
+                .header("Content-Type", "application/json");
+
+            for raw_header in extra_headers {
+                match raw_header.split_once(':') {
+                    Some((name, value)) => {
+                        request = request.header(name.trim(), value.trim());
+                    }
+                    None => println!(
+                        "Ignoring malformed header '{}', expected format 'Key: Value'",
+                        raw_header
+                    ),
+                }
+            }
+
+            let response = request.send().await;
             match response {
                 Ok(res) => match res.status() {
                     StatusCode::ACCEPTED => {
