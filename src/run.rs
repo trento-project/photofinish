@@ -172,14 +172,18 @@ mod tests {
 
     static TEST_DIR_COUNTER: AtomicU32 = AtomicU32::new(0);
 
-    fn unique_test_dir(name: &str) -> std::path::PathBuf {
+    fn unique_test_path(name: &str) -> std::path::PathBuf {
         let id = TEST_DIR_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
+        std::env::temp_dir().join(format!(
             "photofinish_test_{}_{}_{}",
             std::process::id(),
             name,
             id
-        ));
+        ))
+    }
+
+    fn unique_test_dir(name: &str) -> std::path::PathBuf {
+        let dir = unique_test_path(name);
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -242,7 +246,7 @@ mod tests {
 
     #[test]
     fn scan_directory_errors_on_missing_directory() {
-        let dir = std::env::temp_dir().join("photofinish_test_scan_directory_missing");
+        let dir = unique_test_path("scan_directory_missing");
         assert!(scan_directory(dir.to_str().unwrap()).is_err());
     }
 
@@ -261,8 +265,7 @@ mod tests {
 
     #[test]
     fn extract_fixtures_from_directory_returns_none_for_missing_directory() {
-        let missing = std::env::temp_dir()
-            .join("photofinish_test_extract_missing")
+        let missing = unique_test_path("extract_missing")
             .to_str()
             .unwrap()
             .to_string();
@@ -359,8 +362,7 @@ mod tests {
 
     #[tokio::test]
     async fn post_fixture_errors_when_file_is_missing() {
-        let missing_file = std::env::temp_dir()
-            .join("photofinish_test_post_fixture_missing_file.json")
+        let missing_file = unique_test_path("post_fixture_missing_file.json")
             .to_str()
             .unwrap()
             .to_string();

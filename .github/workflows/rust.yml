@@ -51,4 +51,4 @@ jobs:
         run: rustup component add clippy
       - name: Run Clippy
         id: clippy
-        run: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
