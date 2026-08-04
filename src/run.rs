@@ -159,3 +159,396 @@ fn extract_fixtures_from_directory(directory: &String) -> Option<Vec<String>> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+    use tokio::time::timeout;
+
+    static TEST_DIR_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    fn unique_test_path(name: &str) -> std::path::PathBuf {
+        let id = TEST_DIR_COUNTER.fetch_add(1, Ordering::SeqCst);
+        std::env::temp_dir().join(format!(
+            "photofinish_test_{}_{}_{}",
+            std::process::id(),
+            name,
+            id
+        ))
+    }
+
+    fn unique_test_dir(name: &str) -> std::path::PathBuf {
+        let dir = unique_test_path(name);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    async fn spawn_mock_server(response: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let mut buf = [0u8; 4096];
+                let _ = socket.read(&mut buf).await;
+                let _ = socket.write_all(response.as_bytes()).await;
+                let _ = socket.shutdown().await;
+            }
+        });
+        format!("http://{}", addr)
+    }
+
+    // Accepts one connection per entry in `responses`, in order, and counts how many
+    // connections were actually served — used to assert how many requests `run()` made.
+    async fn spawn_multi_response_mock_server(
+        responses: Vec<&'static str>,
+    ) -> (String, Arc<AtomicUsize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        tokio::spawn(async move {
+            for response in responses {
+                if let Ok((mut socket, _)) = listener.accept().await {
+                    let mut buf = [0u8; 4096];
+                    let _ = socket.read(&mut buf).await;
+                    let _ = socket.write_all(response.as_bytes()).await;
+                    let _ = socket.shutdown().await;
+                    counter_clone.fetch_add(1, Ordering::SeqCst);
+                }
+            }
+        });
+        (format!("http://{}", addr), counter)
+    }
+
+    // scan_directory
+
+    #[test]
+    fn scan_directory_lists_only_files_not_subdirectories() {
+        let dir = unique_test_dir("scan_files");
+        fs::write(dir.join("a.json"), "{}").unwrap();
+        fs::write(dir.join("b.json"), "{}").unwrap();
+        fs::create_dir(dir.join("nested")).unwrap();
+
+        let mut files = scan_directory(dir.to_str().unwrap()).unwrap();
+        files.sort();
+
+        assert_eq!(files.len(), 2);
+        assert!(files[0].ends_with("a.json"));
+        assert!(files[1].ends_with("b.json"));
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn scan_directory_errors_on_missing_directory() {
+        let dir = unique_test_path("scan_directory_missing");
+        assert!(scan_directory(dir.to_str().unwrap()).is_err());
+    }
+
+    // extract_fixtures_from_directory
+
+    #[test]
+    fn extract_fixtures_from_directory_returns_files_on_success() {
+        let dir = unique_test_dir("extract_files");
+        fs::write(dir.join("a.json"), "{}").unwrap();
+
+        let files = extract_fixtures_from_directory(&dir.to_str().unwrap().to_string()).unwrap();
+        assert_eq!(files.len(), 1);
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn extract_fixtures_from_directory_returns_none_for_missing_directory() {
+        let missing = unique_test_path("extract_missing")
+            .to_str()
+            .unwrap()
+            .to_string();
+        assert!(extract_fixtures_from_directory(&missing).is_none());
+    }
+
+    // post_fixture
+
+    #[tokio::test]
+    async fn post_fixture_returns_success_on_202() {
+        let dir = unique_test_dir("post_202");
+        let file = dir.join("fixture.json");
+        fs::write(&file, "{}").unwrap();
+        let endpoint = spawn_mock_server(
+            "HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+        )
+        .await;
+
+        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false).await;
+
+        match result {
+            Ok(FixtureResult::Success) => (),
+            Ok(other) => panic!("expected Success, got {:?}", other),
+            Err(_) => panic!("expected Success, got an error"),
+        }
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn post_fixture_returns_unauthorized_on_401() {
+        let dir = unique_test_dir("post_401");
+        let file = dir.join("fixture.json");
+        fs::write(&file, "{}").unwrap();
+        let endpoint = spawn_mock_server(
+            "HTTP/1.1 401 Unauthorized\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+        )
+        .await;
+
+        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false).await;
+
+        match result {
+            Ok(FixtureResult::Unauthorized) => (),
+            Ok(other) => panic!("expected Unauthorized, got {:?}", other),
+            Err(_) => panic!("expected Unauthorized, got an error"),
+        }
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn post_fixture_returns_retryable_on_400() {
+        let dir = unique_test_dir("post_400");
+        let file = dir.join("fixture.json");
+        fs::write(&file, "{}").unwrap();
+        let endpoint = spawn_mock_server(
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+        )
+        .await;
+
+        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false).await;
+
+        match result {
+            Ok(FixtureResult::Retryable { file: retried_file }) => {
+                assert_eq!(retried_file, file.to_str().unwrap())
+            }
+            Ok(other) => panic!("expected Retryable, got {:?}", other),
+            Err(_) => panic!("expected Retryable, got an error"),
+        }
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn post_fixture_returns_skippable_on_unexpected_status() {
+        let dir = unique_test_dir("post_500");
+        let file = dir.join("fixture.json");
+        fs::write(&file, "{}").unwrap();
+        let endpoint = spawn_mock_server(
+            "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+        )
+        .await;
+
+        let result = post_fixture(&endpoint, "api-key", file.to_str().unwrap(), false).await;
+
+        match result {
+            Ok(FixtureResult::Skippable) => (),
+            Ok(other) => panic!("expected Skippable, got {:?}", other),
+            Err(_) => panic!("expected Skippable, got an error"),
+        }
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn post_fixture_errors_when_file_is_missing() {
+        let missing_file = unique_test_path("post_fixture_missing_file.json")
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        let result = post_fixture("http://127.0.0.1:1", "api-key", &missing_file, false).await;
+
+        match result {
+            Err(Errored { file, reason }) => {
+                assert_eq!(file, missing_file);
+                assert_eq!(reason, "Couldn't read file");
+            }
+            Ok(_) => panic!("expected an error for a missing file"),
+        }
+    }
+
+    #[tokio::test]
+    async fn post_fixture_errors_when_the_server_is_unreachable() {
+        let dir = unique_test_dir("post_unreachable");
+        let file = dir.join("fixture.json");
+        fs::write(&file, "{}").unwrap();
+
+        // Bind then immediately drop to obtain a port nothing is listening on.
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
+
+        let result = post_fixture(
+            &format!("http://{}", addr),
+            "api-key",
+            file.to_str().unwrap(),
+            false,
+        )
+        .await;
+
+        match result {
+            Err(Errored { file: errored_file, .. }) => {
+                assert_eq!(errored_file, file.to_str().unwrap())
+            }
+            Ok(_) => panic!("expected an error for an unreachable server"),
+        }
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    // run
+
+    #[tokio::test]
+    async fn run_returns_err_for_non_existing_scenario() {
+        let result = timeout(
+            Duration::from_secs(5),
+            run(
+                "http://127.0.0.1:1",
+                false,
+                "api-key",
+                "missing-scenario".to_string(),
+                vec![],
+                0,
+            ),
+        )
+        .await
+        .expect("run() timed out");
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn run_posts_all_files_successfully() {
+        let dir = unique_test_dir("run_success");
+        let file_a = dir.join("a.json");
+        let file_b = dir.join("b.json");
+        fs::write(&file_a, "{}").unwrap();
+        fs::write(&file_b, "{}").unwrap();
+
+        let ok_response = "HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n";
+        let (endpoint, counter) =
+            spawn_multi_response_mock_server(vec![ok_response, ok_response]).await;
+
+        let scenario = Scenario {
+            label: "my-scenario".to_string(),
+            files: vec![
+                file_a.to_str().unwrap().to_string(),
+                file_b.to_str().unwrap().to_string(),
+            ],
+            directories: vec![],
+        };
+
+        let result = timeout(
+            Duration::from_secs(5),
+            run(
+                &endpoint,
+                false,
+                "api-key",
+                "my-scenario".to_string(),
+                vec![scenario],
+                0,
+            ),
+        )
+        .await
+        .expect("run() timed out");
+
+        assert!(result.is_ok());
+        assert_eq!(counter.load(Ordering::SeqCst), 2);
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn run_stops_early_on_unauthorized() {
+        let dir = unique_test_dir("run_unauthorized");
+        let file_a = dir.join("a.json");
+        let file_b = dir.join("b.json");
+        fs::write(&file_a, "{}").unwrap();
+        fs::write(&file_b, "{}").unwrap();
+
+        let (endpoint, counter) = spawn_multi_response_mock_server(vec![
+            "HTTP/1.1 401 Unauthorized\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+        ])
+        .await;
+
+        let scenario = Scenario {
+            label: "my-scenario".to_string(),
+            files: vec![
+                file_a.to_str().unwrap().to_string(),
+                file_b.to_str().unwrap().to_string(),
+            ],
+            directories: vec![],
+        };
+
+        let result = timeout(
+            Duration::from_secs(5),
+            run(
+                &endpoint,
+                false,
+                "api-key",
+                "my-scenario".to_string(),
+                vec![scenario],
+                0,
+            ),
+        )
+        .await
+        .expect("run() timed out");
+
+        assert!(result.is_err());
+        // Only the first file should have been sent — run() must bail out on
+        // the first Unauthorized response instead of posting the rest.
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn run_retries_retryable_fixtures() {
+        let dir = unique_test_dir("run_retry");
+        let file_a = dir.join("a.json");
+        fs::write(&file_a, "{}").unwrap();
+
+        let (endpoint, counter) = spawn_multi_response_mock_server(vec![
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+            "HTTP/1.1 202 Accepted\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+        ])
+        .await;
+
+        let scenario = Scenario {
+            label: "my-scenario".to_string(),
+            files: vec![file_a.to_str().unwrap().to_string()],
+            directories: vec![],
+        };
+
+        let result = timeout(
+            Duration::from_secs(5),
+            run(
+                &endpoint,
+                false,
+                "api-key",
+                "my-scenario".to_string(),
+                vec![scenario],
+                0,
+            ),
+        )
+        .await
+        .expect("run() timed out");
+
+        assert!(result.is_ok());
+        // First attempt gets 400 (Retryable), then the retry pass posts it again.
+        assert_eq!(counter.load(Ordering::SeqCst), 2);
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+}

@@ -81,3 +81,85 @@ pub fn parse_scenarios(config: String) -> Vec<Scenario> {
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_scenario_with_both_files_and_directories() {
+        let scenarios = parse_scenarios(
+            r#"
+            [my-scenario]
+            files = ["a.json", "b.json"]
+            directories = ["some/dir"]
+            "#
+            .to_string(),
+        );
+
+        assert_eq!(scenarios.len(), 1);
+        assert_eq!(scenarios[0].label, "my-scenario");
+        assert_eq!(scenarios[0].files, vec!["a.json", "b.json"]);
+        assert_eq!(scenarios[0].directories, vec!["some/dir"]);
+    }
+
+    #[test]
+    fn defaults_missing_files_key_to_empty_vec() {
+        let scenarios = parse_scenarios(
+            r#"
+            [fixtures]
+            directories = ["./fixtures/"]
+            "#
+            .to_string(),
+        );
+
+        assert_eq!(scenarios.len(), 1);
+        assert!(scenarios[0].files.is_empty());
+        assert_eq!(scenarios[0].directories, vec!["./fixtures/"]);
+    }
+
+    #[test]
+    fn defaults_missing_directories_key_to_empty_vec() {
+        let scenarios = parse_scenarios(
+            r#"
+            [second-test-scenario]
+            files = ["third file", "fourth-file"]
+            "#
+            .to_string(),
+        );
+
+        assert_eq!(scenarios.len(), 1);
+        assert_eq!(scenarios[0].files, vec!["third file", "fourth-file"]);
+        assert!(scenarios[0].directories.is_empty());
+    }
+
+    #[test]
+    fn extract_array_returns_the_matching_array() {
+        let table: toml::Value = toml::from_str(r#"files = ["a", "b"]"#).unwrap();
+        assert_eq!(extract_array("files", &table), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn extract_array_defaults_to_empty_when_label_missing() {
+        let table: toml::Value = toml::from_str(r#"directories = ["some/dir"]"#).unwrap();
+        assert!(extract_array("files", &table).is_empty());
+    }
+
+    #[test]
+    fn extract_array_defaults_to_empty_when_value_is_not_an_array() {
+        let table: toml::Value = toml::from_str(r#"files = "not-an-array""#).unwrap();
+        assert!(extract_array("files", &table).is_empty());
+    }
+
+    #[test]
+    fn extract_array_maps_non_string_entries_to_empty_string() {
+        let table: toml::Value = toml::from_str(r#"files = [1, "b"]"#).unwrap();
+        assert_eq!(extract_array("files", &table), vec!["", "b"]);
+    }
+
+    #[test]
+    fn get_config_file_content_reads_the_photofinish_toml_in_the_cwd() {
+        let expected = fs::read_to_string(".photofinish.toml").unwrap();
+        assert_eq!(get_config_file_content(), expected);
+    }
+}
