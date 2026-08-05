@@ -36,8 +36,10 @@ Please refer to `+photofinish help+` for more commands.
 
 [source,sh]
 ----
-$ docker run --network host -v <photofinish-toml-dir>:/data ghcr.io/trento-project/photofinish run <scenario-name> "<api-token>" -u <api-collect-endpoint>
+$ docker run --network host -v PHOTOFINISH_TOML_DIR:/data ghcr.io/trento-project/photofinish run SCENARIO_NAME "API_TOKEN" -u API_COLLECT_ENDPOINT
 ----
+
+Replace `+PHOTOFINISH_TOML_DIR+`, `+SCENARIO_NAME+`, `+API_TOKEN+` and `+API_COLLECT_ENDPOINT+` with your actual values before running the command.
 
 == Example of `+.photofinish.toml+`
 
