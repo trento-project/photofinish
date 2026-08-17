@@ -4,7 +4,7 @@
 extern crate clap;
 extern crate exitcode;
 
-use clap::{Arg, Command};
+use clap::{ArgAction, Arg, Command};
 
 mod config;
 mod list;
@@ -51,6 +51,14 @@ async fn main() {
                         .help("Wait interval between http requests, in milliseconds")
                         .default_value("0")
                         .required(false),
+                )
+                .arg(
+                    Arg::new("header")
+                        .short('H')
+                        .long("header")
+                        .help("Extra HTTP header to send with each request, as 'Key: Value'. Can be repeated.")
+                        .action(ArgAction::Append)
+                        .required(false),
                 ),
         )
         .get_matches();
@@ -70,6 +78,10 @@ async fn main() {
         let insecure = run_options.get_one::<String>("insecure").unwrap();
         let wait = run_options.get_one::<String>("wait").unwrap();
         let api_key = run_options.get_one::<String>("API_KEY").unwrap();
+        let headers: Vec<&str> = run_options
+            .get_many::<String>("header")
+            .map(|values| values.map(String::as_str).collect())
+            .unwrap_or_default();
 
         match run::run(
             endpoint_url,
@@ -78,6 +90,7 @@ async fn main() {
             scenario_label.to_string(),
             scenarios,
             wait.parse::<u64>().unwrap(),
+            &headers,
         )
         .await
         {
