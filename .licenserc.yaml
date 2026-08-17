@@ -15,5 +15,6 @@ header:
     - "**/*.json"
     - "**/*.md"
     - ".github/dependabot.yml"
-    - "LICENSE"
+    - ".tool-versions"
     - "Cargo.lock"
+    - "LICENSE"
